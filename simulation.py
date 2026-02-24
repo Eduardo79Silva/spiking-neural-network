@@ -1,18 +1,39 @@
 from lif import lif_step
 import matplotlib.pyplot as plt
 
-v = -70  # start at resting potential
-v_trace = []
-spikes = []
+inputs = [0.0, 0.2, 0.5, 1.0, 0.8]
 
-for t in range(100):  # 100 time steps
-    current = 2.0  # constant input
-    v, spike = lif_step(v, current, dt=1.0, tau=10.0, v_rest=-70)
-    v_trace.append(v)
-    spikes.append(spike)
+N = len(inputs)
+k = 5
+T = 50
 
-plt.scatter(range(len(v_trace)), v_trace)
+# One voltage per neuron
+v = [-70.0] * N
+
+# Store spike trains separately per neuron
+spikes = [[] for _ in range(N)]
+
+for t in range(T):
+    for n in range(N):
+        current = k * inputs[n]
+        v[n], spike = lif_step(v[n], current, dt=1.0, tau=10.0, v_rest=-70)
+        spikes[n].append(spike)
+
+
+for n in range(N):
+    spike_times = [t for t, s in enumerate(spikes[n]) if s == 1]
+    plt.vlines(spike_times, n - 0.4, n + 0.4)
+
+plt.xlabel("Time")
+plt.ylabel("Neuron index")
+plt.title("Spike Raster Plot")
+plt.ylim(-1, N)
 plt.show()
 
-plt.scatter(range(len(spikes)), spikes)
+rates = [sum(spikes[n]) / T for n in range(N)]
+
+plt.bar(range(N), rates)
+plt.xlabel("Neuron index")
+plt.ylabel("Firing rate")
+plt.title("Firing Rate per Neuron")
 plt.show()
