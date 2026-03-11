@@ -1,6 +1,7 @@
 import numpy as np
 
 from layers.spiking_layer import SpikingLayer
+from utils.poisson_input import poisson_input
 from synapse import Synapse
 
 
@@ -23,7 +24,13 @@ class Network:
         )
 
     def run(self):
+        inputs = poisson_input(
+            num_neurons=5, firing_rate=50.0, dt=1.0, timesteps=self.timesteps
+        )
+
         for t in range(self.timesteps):
+            self.layers[0].input_current = np.dot(self.synapses[0].weights, inputs[t])
+
             for synapse in self.synapses:
                 synapse.compute_current()
 

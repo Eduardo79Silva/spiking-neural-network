@@ -30,7 +30,20 @@ class STDP:
         weights: np.ndarray,
         t: float,
     ):
+        if not np.any(pre_spikes) and not np.any(post_spikes):
+            return
+
+        valid_pre = self.t_pre > 0
+
+        valid_post = self.t_post > 0
+
+        if not np.any(valid_pre) or not np.any(valid_post):
+            self.t_pre[pre_spikes > 0] = t
+            self.t_post[post_spikes > 0] = t
+            return
+
         delta_t = self.t_post[:, np.newaxis] - self.t_pre[np.newaxis, :]
+        delta_t = np.clip(delta_t, -5 * self.tau_minus, 5 * self.tau_plus)
 
         post_mask = post_spikes[:, np.newaxis]
         ltp = self.A_plus * np.exp(-delta_t / self.tau_plus) * post_mask
