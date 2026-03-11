@@ -6,7 +6,7 @@ from rules.stdp import STDP
 class Synapse:
 
     def __init__(
-        self, pre_layer: SpikingLayer, post_layer: SpikingLayer, learning_rule=STDP()
+        self, pre_layer: SpikingLayer, post_layer: SpikingLayer, learning_rule=None
     ):
         self.pre_layer = pre_layer
         self.post_layer = post_layer
@@ -15,11 +15,16 @@ class Synapse:
         )
         self.learning_rule = learning_rule
 
-    def step(self, t):
+    def compute_current(self):
         pre_spikes = self.pre_layer.last_spikes
 
         passing_current = self.weights @ pre_spikes
-        self.post_layer.step(passing_current, t)
+        self.post_layer.input_current = passing_current
 
-        post_spikes = self.post_layer.last_spikes
-        self.learning_rule.update(pre_spikes, post_spikes, self.weights, t)
+    def update_weights(self, t: int):
+        if not self.learning_rule:
+            return
+
+        self.learning_rule.update(
+            self.pre_layer.last_spikes, self.post_layer.last_spikes, self.weights, t
+        )
