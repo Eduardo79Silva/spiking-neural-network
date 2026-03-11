@@ -50,16 +50,15 @@ def main():
         num_inputs=5, num_neurons=2, tau=10.0, v_rest=-70.0, v_th=-55.0, v_reset=-75.0
     )
 
-    network = Network(layers=[input_layer, hidden_layer, output_layer])
+    network = Network(
+        layers=[input_layer, hidden_layer, output_layer], timesteps=args.timesteps
+    )
 
     stdp01 = STDP(5, 5)
     stdp12 = STDP(5, 2)
 
     network.create_synapse(0, 1, stdp01)
     network.create_synapse(1, 2, stdp12)
-    input_layer.input_current = np.dot(
-        network.synapses[0].weights, np.linspace(0.0, 1.0, input_layer.num_neurons)
-    )
 
     network.run()
 
