@@ -14,10 +14,11 @@ class ConstantCurrentPopulationExperiment:
 
     def run(self):
         inputs = self.build_inputs()
+        self.layer.input_current = inputs
         spikes_over_time = []
 
         for t in range(self.T):
-            spikes = self.layer.step(inputs, t)
+            spikes = self.layer.step(t)
             spikes_over_time.append(spikes)
 
         return np.array(spikes_over_time).T
