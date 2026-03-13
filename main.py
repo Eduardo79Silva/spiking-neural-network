@@ -2,9 +2,16 @@ import argparse
 import numpy as np
 import random
 
+from data.mnist import load_mnist
 from layers.spiking_layer import SpikingLayer
 from rules.stdp import STDP
-from utils.plotting import plot_raster, plot_firing_rates
+from utils.plotting import (
+    plot_raster,
+    plot_firing_rates,
+    plot_weight_distributions,
+    plot_weight_heatmaps,
+    plot_firing_rate_history,
+)
 from network import Network
 
 
@@ -31,12 +38,21 @@ def parse_args():
         "--timesteps", type=int, default=100, help="Number of simulation steps"
     )
 
+    parser.add_argument(
+        "--record-every",
+        type=int,
+        default=10,
+        help="Snapshot weights every N timesteps",
+    )
+
     return parser.parse_args()
 
 
 def main():
     args = parse_args()
     set_seed(args.seed)
+
+    train_loader, test_loader = load_mnist(batch_size=64)
 
     input_layer = SpikingLayer(
         num_inputs=5, num_neurons=5, tau=10.0, v_rest=-70.0, v_th=-55.0, v_reset=-75.0
@@ -60,16 +76,18 @@ def main():
     network.create_synapse(0, 1, stdp01)
     network.create_synapse(1, 2, stdp12)
 
-    network.run()
-
-    # experiment = ConstantCurrentPopulationExperiment(
-    #     layer=layer, T=args.timesteps, k=5.0
-    # )
+    network.run(record_every=args.record_every)
 
     spikes = network.get_output_spikes()
 
     plot_raster(spikes)
     plot_firing_rates(spikes, T=args.timesteps)
+
+    plot_weight_distributions(network.weight_snapshots, synapse_idx=0)
+    plot_weight_distributions(network.weight_snapshots, synapse_idx=1)
+    plot_weight_heatmaps(network.weight_snapshots, synapse_idx=0)
+    plot_weight_heatmaps(network.weight_snapshots, synapse_idx=1)
+    plot_firing_rate_history(network.firing_rate_history)
 
 
 if __name__ == "__main__":
