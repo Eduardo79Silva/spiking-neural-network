@@ -26,7 +26,4 @@ class SpikingLayer:
 
         self.last_spikes = spikes
 
-        print(self.input_current)
-        print()
-
         return spikes
