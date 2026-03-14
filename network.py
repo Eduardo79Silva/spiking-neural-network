@@ -26,14 +26,13 @@ class Network:
         )
 
     def run(self, inputs: np.ndarray, record_every: int = 10):
-
         for t in range(self.timesteps):
-            self.layers[0].input_current = inputs[t]
+            self.layers[0].last_spikes = inputs[t]
 
             for synapse in self.synapses:
                 synapse.compute_current()
 
-            for layer in self.layers:
+            for layer in self.layers[1:]:
                 layer.step(t)
 
             for synapse in self.synapses:
