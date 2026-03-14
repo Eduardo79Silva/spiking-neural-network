@@ -12,6 +12,8 @@ class Network:
         self.timesteps = timesteps
         self.synapses: list[Synapse] = []
         self.spikes = []
+        self.weight_snapshots = {}
+        self.firing_rate_history = []
 
     def add_layer(self, layer: SpikingLayer):
         self.layers.append(layer)
@@ -23,13 +25,10 @@ class Network:
             )
         )
 
-    def run(self):
-        inputs = poisson_input(
-            num_neurons=5, firing_rate=50.0, dt=1.0, timesteps=self.timesteps
-        )
+    def run(self, inputs: np.ndarray, record_every: int = 10):
 
         for t in range(self.timesteps):
-            self.layers[0].input_current = np.dot(self.synapses[0].weights, inputs[t])
+            self.layers[0].input_current = inputs[t]
 
             for synapse in self.synapses:
                 synapse.compute_current()
@@ -41,6 +40,15 @@ class Network:
                 synapse.update_weights(t)
 
             self.spikes.append(self.layers[-1].last_spikes)
+
+            if t % record_every == 0:
+                self.weight_snapshots[t] = [
+                    synapse.weights.copy() for synapse in self.synapses
+                ]
+
+            self.firing_rate_history.append(
+                [float(np.mean(layer.last_spikes)) for layer in self.layers]
+            )
 
     def get_output_spikes(self):
         return np.array(self.spikes).T
