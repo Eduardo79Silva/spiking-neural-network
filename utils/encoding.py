@@ -2,7 +2,7 @@ import torch
 
 
 def encode_poisson(
-    data: torch.Tensor, num_timesteps: int, scale: float = 0.1
+    data: torch.Tensor, num_timesteps: int, scale: float = 0.25
 ) -> torch.Tensor:
     num_batches, frame_x, frame_y = data.shape
     data = scale * data.view((num_batches, 1, -1)).repeat((1, num_timesteps, 1))
