@@ -1,28 +1,29 @@
 import numpy as np
 
+from neuron import LIFNeuron
+
 
 class SpikingLayer:
-    def __init__(self, num_inputs: int, num_neurons: int, tau, v_rest, v_th, v_reset):
+    def __init__(
+        self, num_neurons: int, tau, v_rest, v_th, v_reset, refractory_period=2
+    ):
         self.num_neurons = num_neurons
 
         self.input_current = np.ndarray(shape=(1,))
 
         self.last_spikes = [0] * num_neurons
 
-        self.v = np.full(num_neurons, v_rest)
-        self.tau = tau
-        self.v_rest = v_rest
-        self.v_th = v_th
-        self.v_reset = v_reset
+        self.neurons = [
+            LIFNeuron(v_rest, v_th, v_reset, tau, refractory_period)
+            for _ in range(num_neurons)
+        ]
 
-    def step(self, dt: float):
+    def step(self, t: float):
 
-        dv = (-(self.v - self.v_rest) / self.tau + self.input_current) * dt
-        self.v += dv
+        spikes = np.ndarray(shape=(self.num_neurons,))
 
-        spikes = (self.v >= self.v_th).astype(float)
-
-        self.v[spikes > 0] = self.v_reset
+        for i in range(self.num_neurons):
+            spikes[i] = self.neurons[i].update(self.input_current[i], t)
 
         self.last_spikes = spikes
 
