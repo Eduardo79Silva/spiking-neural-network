@@ -1,6 +1,5 @@
 import numpy as np
 from layers.spiking_layer import SpikingLayer
-from rules.stdp import STDP
 
 
 class Synapse:

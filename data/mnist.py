@@ -85,4 +85,4 @@ def load_mnist(
     train_loader = DataLoader(train_data, shuffle=True, **loader_kwargs)
     test_loader = DataLoader(test_data, shuffle=False, **loader_kwargs)
 
-    return train_loader, test_loader
+    return train_loader, test_loader, train_data

@@ -1,7 +1,11 @@
 import argparse
 import numpy as np
 import random
+import matplotlib.pyplot as plt
+import torch
+import torchvision
 
+from utils.encoding import encode_class, encode_poisson
 from data.mnist import load_mnist
 from layers.spiking_layer import SpikingLayer
 from rules.stdp import STDP
@@ -52,31 +56,39 @@ def main():
     args = parse_args()
     set_seed(args.seed)
 
-    train_loader, test_loader = load_mnist(batch_size=64)
+    train_loader, test_loader, train_data = load_mnist(batch_size=64)
+
+    frame, class_idx = train_data[0]
+    dt = 10e-3
+
+    num_classes = len(torchvision.datasets.MNIST.classes)
+
+    data = encode_poisson(frame, args.timesteps).squeeze()
+    target = encode_class(torch.tensor(class_idx), 10, args.timesteps)
 
     input_layer = SpikingLayer(
-        num_inputs=5, num_neurons=5, tau=10.0, v_rest=-70.0, v_th=-55.0, v_reset=-75.0
+        num_neurons=784, tau=10.0, v_rest=-70.0, v_th=-55.0, v_reset=-75.0
     )
 
     hidden_layer = SpikingLayer(
-        num_inputs=5, num_neurons=5, tau=10.0, v_rest=-70.0, v_th=-55.0, v_reset=-75.0
+        num_neurons=64, tau=10.0, v_rest=-70.0, v_th=-55.0, v_reset=-75.0
     )
 
     output_layer = SpikingLayer(
-        num_inputs=5, num_neurons=2, tau=10.0, v_rest=-70.0, v_th=-55.0, v_reset=-75.0
+        num_neurons=10, tau=10.0, v_rest=-70.0, v_th=-55.0, v_reset=-75.0
     )
 
     network = Network(
         layers=[input_layer, hidden_layer, output_layer], timesteps=args.timesteps
     )
 
-    stdp01 = STDP(5, 5)
-    stdp12 = STDP(5, 2)
+    stdp01 = STDP(784, 64)
+    stdp12 = STDP(64, 10)
 
     network.create_synapse(0, 1, stdp01)
     network.create_synapse(1, 2, stdp12)
 
-    network.run(record_every=args.record_every)
+    network.run(inputs=data.numpy(), record_every=args.record_every)
 
     spikes = network.get_output_spikes()
 
