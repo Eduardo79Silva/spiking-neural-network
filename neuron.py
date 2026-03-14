@@ -13,9 +13,9 @@ class LIFNeuron:
         if t < self.refractory_end_time:
             return 0
 
-        R_m = 10.0  # membrane resistance — the missing piece
+        R_m = 10.0
         dv = (-(self.v - self.v_rest) + R_m * input_current) / self.tau
-        self.v = self.v + dv  # dt=1 baked in if tau is in timestep units
+        self.v = self.v + dv
 
         if self.v >= self.v_th:
             self.spike_time = t
