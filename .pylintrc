@@ -1,0 +1,15 @@
+[MASTER]
+extension-pkg-whitelist=torch,numpy,scipy
+
+[MESSAGES CONTROL]
+disable=
+    missing-module-docstring,
+    missing-class-docstring,
+    missing-function-docstring,
+    invalid-name,
+    too-many-locals,
+    too-many-arguments,
+    too-many-instance-attributes
+
+[REPORTS]
+reports=no
