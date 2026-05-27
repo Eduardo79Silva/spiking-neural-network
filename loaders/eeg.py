@@ -1,6 +1,6 @@
 import numpy as np
 import mne
-from mne.preprocessing import ICA
+from mne.preprocessing.ica import ICA
 import matplotlib.pyplot as plt
 from scipy import signal
 
