@@ -46,11 +46,21 @@ class STDP:
         delta_t = np.clip(delta_t, -5 * self.tau_minus, 5 * self.tau_plus)
 
         post_mask = post_spikes[:, np.newaxis]
-        ltp = self.A_plus * np.exp(-delta_t / self.tau_plus) * post_mask
+        ltp = (
+            self.A_plus
+            * np.exp(-delta_t / self.tau_plus)
+            * post_mask
+            * (self.w_max - weights)
+        )
         ltp[delta_t <= 0] = 0.0
 
         pre_mask = pre_spikes[np.newaxis, :]
-        ltd = -self.A_minus * np.exp(delta_t / self.tau_minus) * pre_mask
+        ltd = (
+            -self.A_minus
+            * np.exp(delta_t / self.tau_minus)
+            * pre_mask
+            * (weights - self.w_min)
+        )
         ltd[delta_t >= 0] = 0.0
 
         weights += ltp + ltd
