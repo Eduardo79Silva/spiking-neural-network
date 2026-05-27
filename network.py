@@ -1,7 +1,9 @@
 import numpy as np
+from tqdm import tqdm
 
+from utils.recorder import Recorder
+from utils.encoding import encode_poisson
 from layers.spiking_layer import SpikingLayer
-from utils.poisson_input import poisson_input
 from synapse import Synapse
 
 
@@ -25,29 +27,59 @@ class Network:
             )
         )
 
-    def run(self, inputs: np.ndarray, record_every: int = 10):
-        for t in range(self.timesteps):
-            self.layers[0].last_spikes = inputs[t]
+    def reset_layers(self):
+        for layer in self.layers[1:]:
+            layer.last_spikes = np.zeros(layer.num_neurons, dtype=np.float32)
+            layer.input_current = np.zeros(layer.num_neurons, dtype=np.float32)
+            layer.reset_neurons()
 
-            for synapse in self.synapses:
-                synapse.compute_current()
+    def run(self, inputs, record_every: int = 1000):
+        recorder = Recorder(
+            synapses=self.synapses, snapshot_every_n_samples=record_every
+        )
+        outer = tqdm(inputs, desc="Training", unit="sample")
 
-            for layer in self.layers[1:]:
-                layer.step(t)
+        for sample_idx, (frame, _) in enumerate(outer):
+            self.reset_layers()
+            data = encode_poisson(frame, self.timesteps).squeeze().numpy()
 
-            for synapse in self.synapses:
-                synapse.update_weights(t)
+            for t in range(self.timesteps):
+                self.layers[0].last_spikes = data[t]
+                for synapse in self.synapses:
+                    synapse.compute_current()
+                for layer in self.layers[1:]:
+                    layer.step(t)
+                for synapse in self.synapses:
+                    synapse.update_weights(t)
 
-            self.spikes.append(self.layers[-1].last_spikes)
+            recorder.record_sample(self.layers, sample_idx)
+            alpha = 0.01  # smoothing factor — lower = slower, more stable
 
-            if t % record_every == 0:
-                self.weight_snapshots[t] = [
-                    synapse.weights.copy() for synapse in self.synapses
-                ]
+            if not hasattr(self, "_ema"):
+                self._ema = {"in": 0.0, "hid": 0.0, "out": 0.0}
 
-            self.firing_rate_history.append(
-                [float(np.mean(layer.last_spikes)) for layer in self.layers]
+            self._ema["in"] = (1 - alpha) * self._ema["in"] + alpha * float(
+                np.mean(self.layers[0].last_spikes)
             )
+            self._ema["hid"] = (1 - alpha) * self._ema["hid"] + alpha * float(
+                np.mean(self.layers[1].last_spikes)
+            )
+            self._ema["out"] = (1 - alpha) * self._ema["out"] + alpha * float(
+                np.mean(self.layers[-1].last_spikes)
+            )
+
+            outer.set_postfix(
+                {
+                    "in": f"{self._ema['in']:.3f}",
+                    "hid": f"{self._ema['hid']:.3f}",
+                    "out": f"{self._ema['out']:.3f}",
+                    "w0": f"{recorder.weight_stats[-1][0]['mean']:.3f}",
+                    "w1": f"{recorder.weight_stats[-1][1]['mean']:.3f}",
+                }
+            )
+
+        recorder.save()
+        return recorder
 
     def get_output_spikes(self):
         return np.array(self.spikes).T
