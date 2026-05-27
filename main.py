@@ -1,12 +1,8 @@
 import argparse
 import numpy as np
 import random
-import matplotlib.pyplot as plt
-import torch
-import torchvision
 
-from utils.encoding import encode_class, encode_poisson
-from data.mnist import load_mnist
+from loaders.mnist import load_mnist
 from layers.spiking_layer import SpikingLayer
 from rules.stdp import STDP
 from utils.plotting import (
@@ -45,7 +41,7 @@ def parse_args():
     parser.add_argument(
         "--record-every",
         type=int,
-        default=10,
+        default=1000,
         help="Snapshot weights every N timesteps",
     )
 
@@ -58,14 +54,6 @@ def main():
 
     train_loader, test_loader, train_data = load_mnist(batch_size=64)
 
-    frame, class_idx = train_data[0]
-    dt = 10e-3
-
-    num_classes = len(torchvision.datasets.MNIST.classes)
-
-    data = encode_poisson(frame, args.timesteps).squeeze()
-    target = encode_class(torch.tensor(class_idx), 10, args.timesteps)
-
     input_layer = SpikingLayer(
         num_neurons=784, tau=10.0, v_rest=-70.0, v_th=-55.0, v_reset=-75.0
     )
@@ -75,7 +63,7 @@ def main():
     )
 
     output_layer = SpikingLayer(
-        num_neurons=10, tau=10.0, v_rest=-70.0, v_th=-55.0, v_reset=-75.0
+        num_neurons=10, tau=10.0, v_rest=-70.0, v_th=-58.0, v_reset=-75.0
     )
 
     network = Network(
@@ -83,12 +71,11 @@ def main():
     )
 
     stdp01 = STDP(784, 64)
-    stdp12 = STDP(64, 10)
 
     network.create_synapse(0, 1, stdp01)
-    network.create_synapse(1, 2, stdp12)
+    network.create_synapse(1, 2)
 
-    network.run(inputs=data.numpy(), record_every=args.record_every)
+    network.run(inputs=train_data, record_every=args.record_every)
 
     spikes = network.get_output_spikes()
 
