@@ -1,18 +1,19 @@
 import argparse
-import numpy as np
 import random
 
-from loaders.mnist import load_mnist
+import numpy as np
+
 from layers.spiking_layer import SpikingLayer
+from loaders.mnist import load_mnist
+from network import Network
 from rules.stdp import STDP
 from utils.plotting import (
-    plot_raster,
+    plot_firing_rate_history,
     plot_firing_rates,
+    plot_raster,
     plot_weight_distributions,
     plot_weight_heatmaps,
-    plot_firing_rate_history,
 )
-from network import Network
 
 
 def set_seed(seed: int):
