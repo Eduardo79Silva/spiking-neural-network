@@ -1,5 +1,6 @@
 import logging
 import os
+import sys
 import warnings
 
 import mne
@@ -9,12 +10,14 @@ from scipy import signal
 
 warnings.filterwarnings("ignore", category=UserWarning, module="matplotlib")
 
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 _EOG_CHANNELS = {"Fp1": "eog", "Fp2": "eog", "Af3": "eog", "Af4": "eog"}
+_MOTOR_CHANNELS = ["C3", "Cz", "C4"]
 _MONTAGE = "standard_1020"
-_FILTER_LOW_HZ = 1.0
-_FILTER_HIGH_HZ = 40.0
+_FILTER_LOW_HZ = 8
+_FILTER_HIGH_HZ = 30
 _FILTER_ORDER = 4
 _TARGET_EVENTS = {"left_hand": "T1", "right_hand": "T2"}
 _EPOCH_TMIN = 0.0
@@ -96,6 +99,23 @@ def _extract_epochs(
     return epochs
 
 
+def _per_epoch_scaler(psd_data):
+    normalized_psd_data = np.zeros(psd_data.shape)
+    for idx, epoch in enumerate(psd_data):
+        min_val = np.min(epoch)
+        max_val = np.max(epoch)
+
+        if min_val == max_val:
+            normalized_epoch = np.full(shape=epoch.shape, fill_value=0.5)
+            normalized_psd_data[idx] = normalized_epoch
+            continue
+
+        normalized_epoch = (epoch - min_val) / (max_val - min_val)
+        normalized_psd_data[idx] = normalized_epoch
+
+    return normalized_psd_data
+
+
 def load_eeg_motor_imagery(
     file_path: str,
     output_dir: str | None = None,
@@ -118,10 +138,13 @@ def load_eeg_motor_imagery(
         cached = _epochs_cached(output_dir, file_path)
         if cached:
             logger.info("Loading cached epochs from: %s", cached)
-            epochs = mne.read_epochs(cached, verbose=False)
+            epochs = mne.read_epochs(cached, verbose=False, preload=True).pick(
+                _MOTOR_CHANNELS
+            )
             spectrum = epochs.compute_psd(fmin=_FILTER_LOW_HZ, fmax=_FILTER_HIGH_HZ)
             psd_data, frequencies = spectrum.get_data(return_freqs=True)
-            return epochs, psd_data, frequencies
+            psd_data_scaled = _per_epoch_scaler(psd_data)
+            return epochs, psd_data_scaled, frequencies
 
     raw = _load_raw(file_path)
     events, event_dict = mne.events_from_annotations(raw, verbose=False)
@@ -130,12 +153,17 @@ def load_eeg_motor_imagery(
     raw = _remove_eog_artifacts(raw)
 
     epochs = _extract_epochs(raw, events, event_dict)
+
     if epochs is None:
         return None
+
+    epochs = epochs.pick(_MOTOR_CHANNELS)
 
     spectrum = epochs.compute_psd(fmin=_FILTER_LOW_HZ, fmax=_FILTER_HIGH_HZ)
     psd_data, frequencies = spectrum.get_data(return_freqs=True)
     logger.info("PSD matrix shape: %s", psd_data.shape)
+
+    psd_data_scaled = _per_epoch_scaler(psd_data)
 
     if output_dir is not None:
         os.makedirs(output_dir, exist_ok=True)
@@ -144,4 +172,11 @@ def load_eeg_motor_imagery(
         epochs.save(out_path, overwrite=True)
         logger.info("Epochs saved to: %s", out_path)
 
-    return epochs, psd_data, frequencies
+    return epochs, psd_data_scaled, frequencies
+
+
+if __name__ == "__main__":
+    _, psd_data_scaled, _ = load_eeg_motor_imagery(sys.argv[1])
+    logger.info("PSD matrix shape: %s", psd_data_scaled.shape)
+    logger.info("PSD min: %s", np.min(psd_data_scaled))
+    logger.info("PSD max: %s", np.max(psd_data_scaled))
