@@ -1,7 +1,7 @@
 import os
-import torch
 import torchvision
 from torch.utils.data import DataLoader
+from torchvision.datasets import MNIST
 
 # Windows: ~/AppData/Local/torch/datasets
 # Linux/Mac: ~/.cache/torch/datasets
@@ -35,7 +35,7 @@ def load_mnist(
     cache_dir: str | None = None,
     num_workers: int = 0,
     pin_memory: bool = False,
-) -> tuple[DataLoader, DataLoader]:
+) -> tuple[DataLoader, DataLoader, MNIST]:
     """
     Load MNIST train and test DataLoaders.
 
