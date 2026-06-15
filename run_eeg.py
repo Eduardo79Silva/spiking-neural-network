@@ -9,17 +9,10 @@ from layers.spiking_layer import SpikingLayer
 from loaders.eeg import load_eeg_motor_imagery
 from network import Network
 from rules.stdp import STDP
-from utils.plotting import (
-    plot_firing_rate_history,
-    plot_firing_rates,
-    plot_raster,
-    plot_weight_distributions,
-    plot_weight_heatmaps,
-)
 
 EEG_DATASET_PATH = "./data/eeg"
 OUTPUT_DIR = "./data/loaded_eeg"
-AMOUNT_OF_SUBJECTS = 10
+AMOUNT_OF_SUBJECTS = 5
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -56,8 +49,8 @@ def run_eeg():
 
     X_train = torch.from_numpy(X_train).float().unsqueeze(1)
     X_test = torch.from_numpy(X_test).float().unsqueeze(1)
-    y_train = torch.from_numpy(y_train).float().unsqueeze(1)
-    y_test = torch.from_numpy(y_test).float().unsqueeze(1)
+    y_train = torch.from_numpy(y_train).float()
+    y_test = torch.from_numpy(y_test).float()
 
     train_dataset = TensorDataset(X_train, y_train)
 
@@ -82,11 +75,31 @@ def run_eeg():
     network.create_synapse(0, 1, stdp01)
     network.create_synapse(1, 2)
 
-    network.run(inputs=train_dataset, record_every=1000)
+    network.run(inputs=train_dataset)
 
-    spikes = network.get_output_spikes()
+    network.run(inputs=train_dataset, predict=True)
+    spikes = np.array(network.spikes)
 
-    logger.info("Spikes shape: %s", spikes.shape)
+    logging.info("y_train shape: %s", y_train.shape)
+    logging.info("spikes shape: %s", spikes.shape)
+
+    n_output_neurons = network.layers[-1].num_neurons
+    n_classes = len(np.unique(y_train))
+
+    label_matrix = np.zeros((n_output_neurons, n_classes))
+
+    for sample, label in zip(spikes, y_train):
+        for idx, output in enumerate(sample):
+            label_matrix[idx][label.int()] += output
+
+    neuron_labels = np.full(n_output_neurons, -1)
+
+    for idx, neuron in enumerate(label_matrix):
+        if np.any(neuron):
+            neuron_labels[idx] = np.argmax(neuron)
+
+    print(label_matrix)
+    print(neuron_labels)
 
 
 if __name__ == "__main__":

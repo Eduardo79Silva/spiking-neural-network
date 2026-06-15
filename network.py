@@ -33,15 +33,18 @@ class Network:
             layer.input_current = np.zeros(layer.num_neurons, dtype=np.float32)
             layer.reset_neurons()
 
-    def run(self, inputs, record_every: int = 1000):
+    def run(self, inputs, record_every: int = 1000, predict=False):
         recorder = Recorder(
             synapses=self.synapses, snapshot_every_n_samples=record_every
         )
         outer = tqdm(inputs, desc="Training", unit="sample")
+        self.spikes = []
 
         for sample_idx, (frame, _) in enumerate(outer):
             self.reset_layers()
             data = encode_poisson(frame, self.timesteps).squeeze().numpy()
+
+            sample_spikes = np.zeros(self.layers[-1].num_neurons)
 
             for t in range(self.timesteps):
                 self.layers[0].last_spikes = data[t]
@@ -49,11 +52,20 @@ class Network:
                     synapse.compute_current()
                 for layer in self.layers[1:]:
                     layer.step(t)
-                for synapse in self.synapses:
-                    synapse.update_weights(t)
+
+                if not predict:
+                    for synapse in self.synapses:
+                        synapse.update_weights(t)
+                else:
+                    sample_spikes = np.sum(
+                        [sample_spikes, self.layers[-1].last_spikes], axis=0
+                    )
+
+            if predict:
+                self.spikes.append(sample_spikes)
 
             recorder.record_sample(self.layers, sample_idx)
-            alpha = 0.01  # smoothing factor — lower = slower, more stable
+            alpha = 0.01
 
             if not hasattr(self, "_ema"):
                 self._ema = {"in": 0.0, "hid": 0.0, "out": 0.0}

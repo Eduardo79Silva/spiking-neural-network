@@ -75,7 +75,9 @@ class Recorder:
             np.savez_compressed(
                 snap_path,
                 **{
-                    f"sample_{k}": np.array(v) for k, v in self.weight_snapshots.items()
+                    f"sample_{k}_synapse_{i}": np.array(w)
+                    for k, v in self.weight_snapshots.items()
+                    for i, w in enumerate(v)
                 },
             )
         print(f"Saved to {path} ({elapsed:.1f}s, {self.sample_count} samples)")
